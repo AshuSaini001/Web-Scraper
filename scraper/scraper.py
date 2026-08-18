@@ -1,70 +1,70 @@
 import json
-import asyncio
-from playwright.async_api import async_playwright
-from utils import get_random_user_agent, random_delay, log_error, logger
+import requests
+from bs4 import BeautifulSoup
+from fake_useragent import UserAgent
+import logging
+import time
+import random
 
-with open('config.json', 'r', encoding='utf-8') as f:
-    SELECTORS = json.load(f)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-async def scrape_page(page, url, retry_count=0):
+ua = UserAgent()
+
+def random_delay(min_sec=1, max_sec=3):
+    time.sleep(random.uniform(min_sec, max_sec))
+
+def scrape_listings(url):
+    headers = {
+        'User-Agent': ua.random,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate',
+        'Connection': 'keep-alive',
+    }
+    
     try:
-        await page.goto(url, wait_until='networkidle', timeout=30000)
-        await page.evaluate("window.scrollBy(0, window.innerHeight / 2)")
-        await random_delay(1, 2)
-        await page.evaluate("window.scrollBy(0, window.innerHeight / 2)")
+        logger.info(f"Fetching {url}")
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        random_delay()
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        quotes = soup.find_all('div', class_='quote')
+        
+        listings = []
+        for quote in quotes:
+            title = quote.find('span', class_='text')
+            author = quote.find('small', class_='author')
+            link = quote.find('a', href=True)
+            
+            if title and author:
+                listings.append({
+                    'title': title.text.strip(),
+                    'company': author.text.strip(),
+                    'link': link['href'] if link else ''
+                })
+        
+        logger.info(f"Scraped {len(listings)} listings")
+        return listings
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request error: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Parsing error: {e}")
+        raise
 
-        await page.wait_for_selector(SELECTORS['jobCard'], timeout=10000)
-        listings = await page.eval_on_selector_all(
-            SELECTORS['jobCard'],
-            """(cards, selectors) => {
-                return cards.map(card => ({
-                    title: card.querySelector(selectors.title)?.innerText?.trim() || '',
-                    company: card.querySelector(selectors.company)?.innerText?.trim() || '',
-                    link: card.querySelector(selectors.link)?.href || ''
-                }));
-            }""",
-            SELECTORS
-        )
+def main():
+    TARGET_URL = "https://quotes.toscrape.com"
+    try:
+        listings = scrape_listings(TARGET_URL)
+        with open('listings.json', 'w') as f:
+            json.dump(listings, f, indent=2)
         return listings
     except Exception as e:
-        log_error(f"Error scraping {url}: {e}")
-        if retry_count < 3:
-            await random_delay(5, 15)
-            return await scrape_page(page, url, retry_count + 1)
-        else:
-            raise
+        logger.error(f"Scraping failed: {e}")
+        raise
 
-async def main():
-    # Note: replace with your own sandbox URL
-    TARGET_URL =  "https://quotes.toscrape.com"
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=[
-                '--disable-blink-features=AutomationControlled',
-                '--disable-dev-shm-usage',
-                '--no-sandbox'
-            ]
-        )
-        context = await browser.new_context(
-            user_agent=get_random_user_agent(),
-            viewport={'width': 1366, 'height': 768},
-            locale='en-US',
-            timezone_id='America/New_York'
-        )
-        await context.add_init_script("""
-            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-        """)
-        page = await context.new_page()
-        try:
-            listings = await scrape_page(page, TARGET_URL)
-            logger.info(f"Scraped {len(listings)} listings")
-            with open('listings.json', 'w') as f:
-                json.dump(listings, f, indent=2)
-        except Exception as e:
-            log_error(f"Fatal error: {e}")
-        finally:
-            await browser.close()
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()
