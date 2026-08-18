@@ -36,7 +36,7 @@ async def scrape_page(page, url, retry_count=0):
 
 async def main():
     # Note: replace with your own sandbox URL
-    TARGET_URL =  "http://localhost:8000/sandbox.html"
+    TARGET_URL =  "https://quotes.toscrape.com"
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
