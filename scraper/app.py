@@ -1,6 +1,4 @@
 from flask import Flask, jsonify
-import asyncio
-import os
 from scraper import main
 
 app = Flask(__name__)
@@ -12,13 +10,12 @@ def home():
 @app.route('/scrape')
 def run_scrape():
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(main())
+        main()
         return jsonify({"status": "scraping completed"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
 if __name__ == '__main__':
+    import os
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
