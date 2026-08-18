@@ -1,6 +1,0 @@
-{
-  "jobCard": "div.quote",
-  "title": "span.text",
-  "company": "small.author",
-  "link": "a[href*='/author/']"
-}
