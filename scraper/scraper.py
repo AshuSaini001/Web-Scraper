@@ -3,7 +3,7 @@ import asyncio
 from playwright.async_api import async_playwright
 from utils import get_random_user_agent, random_delay, log_error, logger
 
-with open('config.json', 'r') as f:
+with open('config.json', 'r', encoding='utf-8') as f:
     SELECTORS = json.load(f)
 
 async def scrape_page(page, url, retry_count=0):
