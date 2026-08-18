@@ -1,6 +1,6 @@
 {
-  "jobCard": "div.job-listing",
-  "title": "h2.title",
-  "company": "p.company",
-  "link": "a.apply-link"
+  "jobCard": "div.quote",
+  "title": "span.text",
+  "company": "small.author",
+  "link": "a[href*='/author/']"
 }
